@@ -1,0 +1,144 @@
+import requests
+import time
+import pandas as pd
+
+# ─── 1. CONFIGURATION ──────────────────────────────────────────────────────────
+API_KEY = "d0h7gapr01qv1u35p29gd0h7gapr01qv1u35p2a0"
+BASE_URL = "https://finnhub.io/api/v1"
+BATCH_SIZE = 50 # nombre de symboles par bloc
+PAUSE_SEC = 60 # pause entre bloc chaque (60 appels/min max)
+
+# ─── 2. Récepteur unique les symboles US (hors OTC) ────────────────────────
+def get_us_symbols(limite=Aucun):
+ """
+ Recoupe tous les symboles cotés aux États-Unis (NYSE/NASDAQ/AMEX).
+ Sur le générateur obtient ~6 000+ symboles.
+ """
+ url = f"{BASE_URL}/stock/symbole?échange=US&token={API_KEY}"
+ resp = requêtes.get(url)
+ si resp.status_code != 200:
+ print("Erreur symboles de régénération US :", resp.status_code)
+ retour []
+ données = resp.json()
+ symboles = [item['symbol'] pour l'élément dans les données]
+ renvoyer les symboles[:limit] si limiter les autres symboles
+
+# ─── 3. Récepteur le profil complet de l'entreprise ────────────────────────────
+def get_company_profile(symbole) :
+ """
+ Appel/stock/profile2 pour obtenir :
+ - nom (Nom complet)
+ - pays (Pays)
+ - industrie (Secteur)
+ """
+ url = f"{BASE_URL}/stock/profile2?symbole={symbole}&token={API_KEY}"
+ resp = requêtes.get(url)
+ si resp.status_code != 200:
+ retour {« nom » : « Inconnu », « pays » : « Inconnu », « industrie » : « Inconnu »}
+ prof = resp.json()
+ retour {
+ "nom": prof.get("nom", "Inconnu"),
+ "pays": prof.get("pays", "Inconnu"),
+ « Industrie » : prof.get(« finnhubIndustry », « Inconnu »)
+    }
+
+# ─── 4. Vérificateur la surprise de revenu (filtre négatifs & >50%) ──────────────
+def get_earnings_surprise(symbole) :
+ """
+ - Recoupe le dernier rapport.
+ - Ignorer si réel < 0.
+ - Calculer la surprise et ne garde que > 50 %.
+ """
+ url = f"{BASE_URL}/actions/bénéfices ?symbole={symbole}&token={API_KEY}"
+ resp = requêtes.get(url)
+ si resp.status_code != 200:
+ retourner Aucun
+
+ données = resp.json()
+ si ce ne sont pas des données :
+ retourner Aucun
+
+ rpt = données[0]
+ réel = rpt.get(« réel »)
+ estimation = rpt.get(« estimation »)
+ période = rpt.get(« période »)
+
+ # Filtre revenu négatifs ou estimation invalide
+ si réel est Aucun ou réel < 0 ou estimation dans (Aucun, 0) :
+ retourner Aucun
+
+ diff_pct = (réel - estimation) / estimation * 100
+ si diff_pct <= 50 :
+ retourner Aucun
+
+ retour {
+ « Symbole » : symbole,
+ « Publication » : réelle,
+ « Prévision » : estimation,
+ "% de Différence": round(diff_pct, 2),
+ « Date de publication » : période,
+ « Signal » : Vrai
+    }
+
+# ─── 5. Balayage par blocs et affichage cumulatif ───────────────────────────────
+def scan_all_us_symbols(limite=Aucun):
+ symboles = get_us_symbols(limite)
+ total = len(symboles)
+ print(f"Total d'entreprises US au scanner : {total}\n")
+
+ résultats = []
+ n_lots = (total + BATCH_SIZE - 1) // BATCH_SIZE
+
+ pour i dans la plage (n_lots) :
+ lot = symboles[i*TAILLE_LOT : (i+1)*TAILLE_LOT]
+ print(f"[Bloc {i+1}/{n_batches}] Traitement de {len(batch)} symboles…")
+
+ pour sym en lot :
+ surprise = get_earnings_surprise(sym)
+ si surprise:
+ prof = get_company_profile(sym)
+ # Compléter le résultat avec les informations de profil
+ surprise["Nom complet"] = prof["nom"]
+ surprise["Secteur"] = prof["industrie"]
+ surprise["Paie"] = prof["paie"]
+ résultats.append(surprise)
+
+ # Affichage du tableau cumulatif après chapitre bloc
+ afficher_tableau(résultats)
+
+ # Pause entre blocs pour respecter le tous-limite
+ si i < n_lots - 1 :
+ imprimer(f"\nPause de {PAUSE_SEC}s…\n")
+ heure.sommeil(PAUSE_SEC)
+
+ retour résultats
+
+# ─── 6. Affichage formaté (console Thonny) ─────────────────────────────────────
+def afficher_tableau(résultats) :
+ si ce n'est pas le résultat :
+ print(" → Aucune surprise >50 % détection pour l'instant.")
+ retour
+
+ df = pd.DataFrame(résultats)
+ # Ordre des colonnes
+ df = df[[
+ "Symbole",
+ "Nom complet",
+ "Secteur",
+ "Paie",
+ "Publication",
+ "Prévision",
+ "% de Différence",
+ "Date de publication",
+ "Signal"
+ ]]
+ print("\n=== Tableau cumulatif des surprises >50 % ===")
+ imprimer(df.to_string(index=False))
+
+# ─── 7. Point d'entrée du script ────────────────────────────────────────────────
+si __name__ == "__main__":
+ print("Lancement du scan des surprises de revenus US…\n")
+ scan_all_us_symbols(limite=Aucun)
+
+ # ————————————> Blocage de la console
+ entrée("\nTerminaison d'analyse : application sur Entrée pour fermer…")
